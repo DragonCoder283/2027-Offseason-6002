@@ -109,7 +109,7 @@ public class ModuleIOSpark implements ModuleIO {
         // Configure drive motor 
         var driveConfig = new SparkFlexConfig(); 
         driveConfig 
-            .idleMode(IdleMode.kBrake) 
+            .idleMode(IdleMode.kCoast) 
             .smartCurrentLimit(driveMotorCurrentLimit) 
             .voltageCompensation(12.0)
             .inverted(driveInverted); 
@@ -145,7 +145,7 @@ public class ModuleIOSpark implements ModuleIO {
         var turnConfig = new SparkMaxConfig(); 
         turnConfig 
             .inverted(turnInverted) 
-            .idleMode(IdleMode.kBrake) 
+            .idleMode(IdleMode.kCoast) 
             .smartCurrentLimit(turnMotorCurrentLimit) 
             .voltageCompensation(12.0); 
 

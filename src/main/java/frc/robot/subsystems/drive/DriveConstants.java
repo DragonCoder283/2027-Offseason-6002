@@ -51,7 +51,7 @@ public class DriveConstants {
 
   // Drive motor configuration
   public static final int driveMotorCurrentLimit = 50;
-  public static final double wheelRadiusMeters = Units.inchesToMeters(2);
+  public static final double wheelRadiusMeters = Units.inchesToMeters(3.8);
   public static final double driveMotorReduction =
       (45.0 * 54.0) / (12.0 * 15.0); // MAXSwerve with 14 pinion teeth
   // and 22 spur teeth
@@ -66,10 +66,10 @@ public class DriveConstants {
   // Wheel Rad/Sec
 
   // Drive PID configuration
-  public static final double driveKp = 0.0;
+  public static final double driveKp = 0.032047;
   public static final double driveKd = 0.0;
-  public static final double driveKs = 0.0;
-  public static final double driveKv = 0.1;
+  public static final double driveKs = 0.10707;
+  public static final double driveKv = 0.22953;
   public static final double driveSimP = 0.05;
   public static final double driveSimD = 0.0;
   public static final double driveSimKs = 0.0;

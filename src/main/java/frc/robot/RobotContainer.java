@@ -16,6 +16,8 @@ import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
+import frc.robot.autos.AUTO_3MeterTest;
+import frc.robot.autos.AUTO_Test;
 import frc.robot.commands.DriveCommands;
 import frc.robot.subsystems.drive.Drive;
 import frc.robot.subsystems.drive.GyroIO;
@@ -33,7 +35,7 @@ import org.littletonrobotics.junction.networktables.LoggedDashboardChooser;
  */
 public class RobotContainer {
   // Subsystems
-  private final Drive drive;
+  public final Drive drive;
 
   // Controller
   private final CommandXboxController controller = new CommandXboxController(0);
@@ -80,6 +82,9 @@ public class RobotContainer {
 
     // Set up auto routines
     autoChooser = new LoggedDashboardChooser<>("Auto Choices", AutoBuilder.buildAutoChooser());
+
+    autoChooser.addDefaultOption("Test Auto", new AUTO_Test(this));
+    autoChooser.addDefaultOption("3 Meter Test", new AUTO_3MeterTest(this));
 
     // Set up SysId routines
     autoChooser.addOption(
