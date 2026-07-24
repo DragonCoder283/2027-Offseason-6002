@@ -44,6 +44,8 @@ public class Robot extends LoggedRobot {
 
     // IMPORTANT: Only start the logger AFTER adding receivers
     Logger.start();
+
+    m_robotContainer.drive.setPose(new Pose2d(0, 0, new Rotation2d()));
   }
 
   /**
@@ -65,7 +67,6 @@ public class Robot extends LoggedRobot {
   /** This function is called once each time the robot enters Disabled mode. */
   @Override
   public void disabledInit() {
-    m_robotContainer.drive.setPose(new Pose2d(3.5, 5.5, new Rotation2d()));
   }
 
   @Override

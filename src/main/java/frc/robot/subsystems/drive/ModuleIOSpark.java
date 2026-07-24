@@ -30,7 +30,9 @@ import com.revrobotics.spark.config.SparkMaxConfig;
 
 import edu.wpi.first.math.MathUtil; 
 import edu.wpi.first.math.filter.Debouncer; 
-import edu.wpi.first.math.geometry.Rotation2d; 
+import edu.wpi.first.math.geometry.Rotation2d;
+import frc.robot.util.LoggedTunableNumber;
+
 import java.util.Queue; 
 import java.util.function.DoubleSupplier;
 
@@ -59,6 +61,10 @@ public class ModuleIOSpark implements ModuleIO {
     private final Queue<Double> timestampQueue; 
     private final Queue<Double> drivePositionQueue; 
     private final Queue<Double> turnPositionQueue; 
+
+    private final SparkMaxConfig turnConfig;
+
+    private final LoggedTunableNumber turnPid = new LoggedTunableNumber("Drive/turnkP", turnKd);
 
     // Connection debouncers 
     private final Debouncer driveConnectedDebounce = new Debouncer(0.5, Debouncer.DebounceType.kFalling); 
@@ -142,7 +148,7 @@ public class ModuleIOSpark implements ModuleIO {
         tryUntilOk(driveSpark, 5, () -> driveEncoder.setPosition(0.0)); 
 
         // Configure turn motor 
-        var turnConfig = new SparkMaxConfig(); 
+        turnConfig = new SparkMaxConfig(); 
         turnConfig 
             .inverted(turnInverted) 
             .idleMode(IdleMode.kCoast) 
@@ -189,8 +195,8 @@ public class ModuleIOSpark implements ModuleIO {
 
         var turnEncoderOffsets = switch (module) { 
             case 0 -> -0.3408203125; 
-            case 1 -> 0.419921875; 
-            case 2 -> -0.050537109375; 
+            case 1 -> 0.4375; 
+            case 2 -> -0.031494140625; 
             case 3 -> -0.173583984375; 
             default -> 0; 
         };
@@ -214,8 +220,7 @@ public class ModuleIOSpark implements ModuleIO {
 
     @Override 
     public void updateInputs(ModuleIOInputs inputs) { 
-        Logger.recordOutput("Encoders/RelativeEncoder", turnEncoder.getPosition());
-        Logger.recordOutput("Encoders/AbsoluteEncoder", absolutePosition);
+
         // Update drive inputs 
         sparkStickyFault = false; 
         ifOk(driveSpark, driveEncoder::getPosition, (value) -> inputs.drivePositionRad = value); 

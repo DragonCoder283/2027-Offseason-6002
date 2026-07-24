@@ -9,6 +9,7 @@ package frc.robot.subsystems.drive;
 
 import static frc.robot.subsystems.drive.DriveConstants.*;
 
+import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.kinematics.SwerveModulePosition;
 import edu.wpi.first.math.kinematics.SwerveModuleState;
@@ -58,20 +59,35 @@ public class Module {
   /** Runs the module with the specified setpoint state. Mutates the state to optimize it. */
   private static final double kSpeedEpsilon = 0.01; // m/s, tune if needed
 
+  private boolean lastFlipped = false;
+  private static final double kFlipHysteresisRad = Math.toRadians(5); // tune
+
   public void runSetpoint(SwerveModuleState state) {
-      // Skip angle optimization/setpoint entirely when nearly stopped —
-      // prevents flickering between two 180°-apart angles due to sensor noise
-      // at the zero-speed optimize decision boundary
       if (Math.abs(state.speedMetersPerSecond) < kSpeedEpsilon) {
-        io.setDriveVelocity(0.0);
-        return;
+          io.setDriveVelocity(0.0);
+          return;
       }
 
-      // Optimize velocity setpoint
-      state.optimize(getAngle());
-      state.cosineScale(inputs.turnPosition);
+      Rotation2d current = getAngle();
+      Rotation2d error = state.angle.minus(current);
+      double errRad = MathUtil.angleModulus(error.getRadians());
 
-      // Apply setpoints
+      boolean shouldFlip;
+      if (Math.abs(errRad) > Math.PI / 2 + (lastFlipped ? -kFlipHysteresisRad : kFlipHysteresisRad)) {
+          shouldFlip = true;
+      } else if (Math.abs(errRad) < Math.PI / 2 - (lastFlipped ? kFlipHysteresisRad : -kFlipHysteresisRad)) {
+          shouldFlip = false;
+      } else {
+          shouldFlip = lastFlipped; // stay in the deadband, keep previous decision
+      }
+      lastFlipped = shouldFlip;
+
+      if (shouldFlip) {
+          state.angle = state.angle.plus(Rotation2d.k180deg);
+          state.speedMetersPerSecond *= -1;
+      }
+
+      state.cosineScale(inputs.turnPosition);
       io.setDriveVelocity(state.speedMetersPerSecond / wheelRadiusMeters);
       io.setTurnPosition(state.angle);
   }

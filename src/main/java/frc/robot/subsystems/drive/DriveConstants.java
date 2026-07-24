@@ -51,9 +51,9 @@ public class DriveConstants {
 
   // Drive motor configuration
   public static final int driveMotorCurrentLimit = 50;
-  public static final double wheelRadiusMeters = Units.inchesToMeters(3.8);
+  public static final double wheelRadiusMeters = Units.inchesToMeters(2);
   public static final double driveMotorReduction =
-      (45.0 * 54.0) / (12.0 * 15.0); // MAXSwerve with 14 pinion teeth
+      7.03; // MAXSwerve with 14 pinion teeth
   // and 22 spur teeth
   public static final DCMotor driveGearbox = DCMotor.getNeoVortex(1);
 
@@ -66,10 +66,10 @@ public class DriveConstants {
   // Wheel Rad/Sec
 
   // Drive PID configuration
-  public static final double driveKp = 0.032047;
+  public static final double driveKp = 0.0;
   public static final double driveKd = 0.0;
-  public static final double driveKs = 0.10707;
-  public static final double driveKv = 0.22953;
+  public static final double driveKs = 0.12651;
+  public static final double driveKv = 0.23402;
   public static final double driveSimP = 0.05;
   public static final double driveSimD = 0.0;
   public static final double driveSimKs = 0.0;
@@ -78,16 +78,16 @@ public class DriveConstants {
   // Turn motor configuration
   public static final boolean turnInverted = false;
   public static final int turnMotorCurrentLimit = 20;
-  public static final double turnMotorReduction = 9424.0 / 203.0;
+  public static final double turnMotorReduction = 26;
   public static final DCMotor turnGearbox = DCMotor.getNeo550(1);
 
   // Turn encoder configuration
   public static final boolean turnEncoderInverted = true;
-  public static final double turnEncoderPositionFactor = 2 * Math.PI/26.1; // Rotations -> Radians
+  public static final double turnEncoderPositionFactor = 2 * Math.PI/26; // Rotations -> Radians
   public static final double turnEncoderVelocityFactor = (2 * Math.PI) / 60.0; // RPM -> Rad/Sec
 
   // Turn PID configuration
-  public static final double turnKp = 2;
+  public static final double turnKp = 1;
     
   public static final double turnKd = 0.0;
   public static final double turnSimP = 8.0;
@@ -96,9 +96,9 @@ public class DriveConstants {
   public static final double turnPIDMaxInput = 2 * Math.PI; // Radians
 
   // PathPlanner configuration
-  public static final double robotMassKg = 74.088;
-  public static final double robotMOI = 6.883;
-  public static final double wheelCOF = 1.2;
+  public static final double robotMassKg = 15;
+  public static final double robotMOI = 0.75;
+  public static final double wheelCOF = 2.255;
   public static final RobotConfig ppConfig =
       new RobotConfig(
           robotMassKg,
