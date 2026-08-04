@@ -99,8 +99,11 @@ public class ModuleIOSim implements ModuleIO {
   }
 
   @Override
-  public void setDriveVelocity(double velocityRadPerSec) {
+  public void setDriveVelocity(double velocityRadPerSec, double accelRadPerSecSq) {
     driveClosedLoop = true;
+    // Sim doesn't characterize a kA term, so acceleration feedforward is ignored here -
+    // only kS/kV are used, same as before. accelRadPerSecSq is accepted to satisfy the
+    // ModuleIO interface but has no effect in sim.
     driveFFVolts = driveSimKs * Math.signum(velocityRadPerSec) + driveSimKv * velocityRadPerSec;
     driveController.setSetpoint(velocityRadPerSec);
   }

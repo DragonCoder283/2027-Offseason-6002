@@ -3,29 +3,29 @@
   "waypoints": [
     {
       "anchor": {
-        "x": 0.0,
-        "y": 0.0
+        "x": 5.0,
+        "y": 5.2
       },
       "prevControl": null,
       "nextControl": {
-        "x": -0.2890790013311626,
-        "y": -0.008482806646657617
+        "x": 5.271012035955754,
+        "y": 5.179415252339933
       },
       "isLocked": false,
-      "linkedName": null
+      "linkedName": "reefEnd"
     },
     {
       "anchor": {
-        "x": 3.0,
-        "y": 0.0
+        "x": 5.214651639344262,
+        "y": 5.217776639344262
       },
       "prevControl": {
-        "x": 2.7497925109358268,
-        "y": 0.0034346643597040556
+        "x": 4.932363084239687,
+        "y": 5.248207434436796
       },
       "nextControl": null,
       "isLocked": false,
-      "linkedName": null
+      "linkedName": "pickAlgae1end"
     }
   ],
   "rotationTargets": [],
@@ -42,13 +42,13 @@
   },
   "goalEndState": {
     "velocity": 0,
-    "rotation": 0.0
+    "rotation": -119.99999999999999
   },
   "reversed": false,
   "folder": null,
   "idealStartingState": {
     "velocity": 0,
-    "rotation": 0.0
+    "rotation": -119.99999999999999
   },
   "useDefaultConstraints": true
 }

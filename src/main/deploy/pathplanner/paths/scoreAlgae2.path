@@ -3,25 +3,25 @@
   "waypoints": [
     {
       "anchor": {
-        "x": 0.0,
-        "y": 0.0
+        "x": 5.802049180327868,
+        "y": 4.00701844262295
       },
       "prevControl": null,
       "nextControl": {
-        "x": -0.2890790013311626,
-        "y": -0.008482806646657617
+        "x": 6.689863712095613,
+        "y": 4.585455798351763
       },
       "isLocked": false,
-      "linkedName": null
+      "linkedName": "pickAlgae2end"
     },
     {
       "anchor": {
-        "x": 3.0,
-        "y": 0.0
+        "x": 7.2,
+        "y": 5.0
       },
       "prevControl": {
-        "x": 2.7497925109358268,
-        "y": 0.0034346643597040556
+        "x": 6.054409844292941,
+        "y": 4.933859849994164
       },
       "nextControl": null,
       "isLocked": false,
@@ -48,7 +48,7 @@
   "folder": null,
   "idealStartingState": {
     "velocity": 0,
-    "rotation": 0.0
+    "rotation": 180.0
   },
   "useDefaultConstraints": true
 }

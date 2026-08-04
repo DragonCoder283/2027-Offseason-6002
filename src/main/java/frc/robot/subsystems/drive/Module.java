@@ -26,6 +26,14 @@ public class Module {
   private final Alert turnDisconnectedAlert;
   private SwerveModulePosition[] odometryPositions = new SwerveModulePosition[] {};
 
+  private static final double kSpeedEpsilon = 0.01; // m/s, tune if needed
+  // Margin around the 90-degree optimize() flip boundary. Once flipped, the error must swing
+  // back within this margin of the *other* side before we'll flip again - prevents chatter
+  // when the raw angle error sits right on the boundary due to sensor noise.
+  private static final double kFlipHysteresisRad = Math.toRadians(5);
+
+  private boolean lastFlipped = false;
+
   public Module(ModuleIO io, int index) {
     this.io = io;
     this.index = index;
@@ -56,40 +64,48 @@ public class Module {
     turnDisconnectedAlert.set(!inputs.turnConnected);
   }
 
-  /** Runs the module with the specified setpoint state. Mutates the state to optimize it. */
-  private static final double kSpeedEpsilon = 0.01; // m/s, tune if needed
-
-  private boolean lastFlipped = false;
-  private static final double kFlipHysteresisRad = Math.toRadians(5); // tune
-
+  /** Runs the module with the specified setpoint state (no acceleration feedforward). */
   public void runSetpoint(SwerveModuleState state) {
-      if (Math.abs(state.speedMetersPerSecond) < kSpeedEpsilon) {
-          io.setDriveVelocity(0.0);
-          return;
-      }
+    runSetpoint(state, 0.0);
+  }
 
-      Rotation2d current = getAngle();
-      Rotation2d error = state.angle.minus(current);
-      double errRad = MathUtil.angleModulus(error.getRadians());
+  /**
+   * Runs the module with the specified setpoint state and acceleration feedforward (kA). Mutates
+   * the state to optimize it, using hysteresis around the 90-degree flip boundary to avoid
+   * chattering between the two equivalent solutions when the angle error sits near that line.
+   */
+  public void runSetpoint(SwerveModuleState state, double feedforwardAccelMPSSq) {
+    if (Math.abs(state.speedMetersPerSecond) < kSpeedEpsilon) {
+      io.setDriveVelocity(0.0, 0.0);
+      return;
+    }
 
-      boolean shouldFlip;
-      if (Math.abs(errRad) > Math.PI / 2 + (lastFlipped ? -kFlipHysteresisRad : kFlipHysteresisRad)) {
-          shouldFlip = true;
-      } else if (Math.abs(errRad) < Math.PI / 2 - (lastFlipped ? kFlipHysteresisRad : -kFlipHysteresisRad)) {
-          shouldFlip = false;
-      } else {
-          shouldFlip = lastFlipped; // stay in the deadband, keep previous decision
-      }
-      lastFlipped = shouldFlip;
+    Rotation2d current = getAngle();
+    double errRad = MathUtil.angleModulus(state.angle.minus(current).getRadians());
 
-      if (shouldFlip) {
-          state.angle = state.angle.plus(Rotation2d.k180deg);
-          state.speedMetersPerSecond *= -1;
-      }
+    // Decide whether to flip, with a deadband around the 90-degree boundary so noise near the
+    // line doesn't cause the decision to chatter between calls.
+    boolean flipped;
+    if (lastFlipped) {
+      // Currently flipped - only un-flip if we've moved clearly back to the non-flipped side
+      flipped = Math.abs(errRad) > Math.PI / 2 - kFlipHysteresisRad;
+    } else {
+      // Currently not flipped - only flip if we've moved clearly past the boundary
+      flipped = Math.abs(errRad) > Math.PI / 2 + kFlipHysteresisRad;
+    }
+    lastFlipped = flipped;
 
-      state.cosineScale(inputs.turnPosition);
-      io.setDriveVelocity(state.speedMetersPerSecond / wheelRadiusMeters);
-      io.setTurnPosition(state.angle);
+    if (flipped) {
+      state.angle = state.angle.rotateBy(Rotation2d.kPi);
+      state.speedMetersPerSecond *= -1;
+    }
+    state.cosineScale(current);
+
+    double accelRadPerSecSq =
+        (flipped ? -feedforwardAccelMPSSq : feedforwardAccelMPSSq) / wheelRadiusMeters;
+
+    io.setDriveVelocity(state.speedMetersPerSecond / wheelRadiusMeters, accelRadPerSecSq);
+    io.setTurnPosition(state.angle);
   }
 
   /** Runs the module with the specified output while controlling to zero degrees. */

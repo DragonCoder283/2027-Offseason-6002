@@ -31,12 +31,8 @@ import com.revrobotics.spark.config.SparkMaxConfig;
 import edu.wpi.first.math.MathUtil; 
 import edu.wpi.first.math.filter.Debouncer; 
 import edu.wpi.first.math.geometry.Rotation2d;
-import frc.robot.util.LoggedTunableNumber;
-
 import java.util.Queue; 
-import java.util.function.DoubleSupplier;
-
-import org.littletonrobotics.junction.Logger; 
+import java.util.function.DoubleSupplier; 
 
 /** 
  * Module IO implementation for Spark Flex drive motor controller, Spark Max turn motor controller, 
@@ -63,8 +59,6 @@ public class ModuleIOSpark implements ModuleIO {
     private final Queue<Double> turnPositionQueue; 
 
     private final SparkMaxConfig turnConfig;
-
-    private final LoggedTunableNumber turnPid = new LoggedTunableNumber("Drive/turnkP", turnKd);
 
     // Connection debouncers 
     private final Debouncer driveConnectedDebounce = new Debouncer(0.5, Debouncer.DebounceType.kFalling); 
@@ -115,7 +109,7 @@ public class ModuleIOSpark implements ModuleIO {
         // Configure drive motor 
         var driveConfig = new SparkFlexConfig(); 
         driveConfig 
-            .idleMode(IdleMode.kCoast) 
+            .idleMode(IdleMode.kBrake) 
             .smartCurrentLimit(driveMotorCurrentLimit) 
             .voltageCompensation(12.0)
             .inverted(driveInverted); 
@@ -151,7 +145,7 @@ public class ModuleIOSpark implements ModuleIO {
         turnConfig = new SparkMaxConfig(); 
         turnConfig 
             .inverted(turnInverted) 
-            .idleMode(IdleMode.kCoast) 
+            .idleMode(IdleMode.kBrake) 
             .smartCurrentLimit(turnMotorCurrentLimit) 
             .voltageCompensation(12.0); 
 
@@ -183,7 +177,7 @@ public class ModuleIOSpark implements ModuleIO {
             turnSpark, 5, () -> turnSpark.configure( 
                 turnConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters)); 
 
-        // Instantiate the CAN Bus CANcoder
+        try (// Instantiate the CAN Bus CANcoder
         var turnEncoderCTRE = new CANcoder( 
             switch (module) { 
                 case 0 -> 31; 
@@ -191,26 +185,26 @@ public class ModuleIOSpark implements ModuleIO {
                 case 2 -> 33; 
                 case 3 -> 34; 
                 default -> 0; 
-            }); 
+            })) {
+            var turnEncoderOffsets = switch (module) { 
+                case 0 -> -0.3408203125; 
+                case 1 -> 0.4375; 
+                case 2 -> -0.031494140625; 
+                case 3 -> -0.173583984375; 
+                default -> 0; 
+            };
 
-        var turnEncoderOffsets = switch (module) { 
-            case 0 -> -0.3408203125; 
-            case 1 -> 0.4375; 
-            case 2 -> -0.031494140625; 
-            case 3 -> -0.173583984375; 
-            default -> 0; 
-        };
+            CANcoderConfiguration config = new CANcoderConfiguration();
 
-        CANcoderConfiguration config = new CANcoderConfiguration();
+            config.MagnetSensor.MagnetOffset = turnEncoderOffsets;
+            turnEncoderCTRE.getConfigurator().apply(config);
 
-        config.MagnetSensor.MagnetOffset = turnEncoderOffsets;
-        turnEncoderCTRE.getConfigurator().apply(config);
-
-        // Seed the high-speed internal encoder with the absolute CANcoder position on boot
-        // Get position returns rotations. Ensure your turnEncoderPositionFactor matches the expected units (usually Radians for AdvantageKit setups)
-        turnEncoder.setPosition(0);
-        double absolutePosition = turnEncoderCTRE.getAbsolutePosition().getValueAsDouble();
-        tryUntilOk(turnSpark, 5, () -> turnEncoder.setPosition(Rotation2d.fromRotations(absolutePosition).getRadians()));
+            // Seed the high-speed internal encoder with the absolute CANcoder position on boot
+            // Get position returns rotations. Ensure your turnEncoderPositionFactor matches the expected units (usually Radians for AdvantageKit setups)
+            turnEncoder.setPosition(0);
+            double absolutePosition = turnEncoderCTRE.getAbsolutePosition().getValueAsDouble();
+            tryUntilOk(turnSpark, 5, () -> turnEncoder.setPosition(Rotation2d.fromRotations(absolutePosition).getRadians()));
+        } 
 
         // Create odometry queues 
         timestampQueue = SparkOdometryThread.getInstance().makeTimestampQueue(); 
@@ -266,8 +260,11 @@ public class ModuleIOSpark implements ModuleIO {
     } 
 
     @Override 
-    public void setDriveVelocity(double velocityRadPerSec) { 
-        double ffVolts = driveKs * Math.signum(velocityRadPerSec) + driveKv * velocityRadPerSec; 
+    public void setDriveVelocity(double velocityRadPerSec, double accelRadPerSecSq) { 
+        double ffVolts =
+            driveKs * Math.signum(velocityRadPerSec)
+                + driveKv * velocityRadPerSec
+                + driveKa * accelRadPerSecSq;
         driveController.setSetpoint( 
             velocityRadPerSec, ControlType.kVelocity, ClosedLoopSlot.kSlot0, ffVolts, ArbFFUnits.kVoltage);}
             @Override

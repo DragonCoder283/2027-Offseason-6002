@@ -7,21 +7,18 @@
 
 package frc.robot.subsystems.drive;
 
-import org.littletonrobotics.junction.networktables.LoggedNetworkNumber;
-
 import com.pathplanner.lib.config.ModuleConfig;
 import com.pathplanner.lib.config.RobotConfig;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.system.plant.DCMotor;
 import edu.wpi.first.math.util.Units;
-import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
 public class DriveConstants {
   public static final double maxSpeedMetersPerSec = 4.8;
   public static final double odometryFrequency = 100.0; // Hz
-  public static final double trackWidth = Units.inchesToMeters(27);
-  public static final double wheelBase = Units.inchesToMeters(27);
+  public static final double trackWidth = Units.inchesToMeters(21.75);
+  public static final double wheelBase = Units.inchesToMeters(21.75);
   public static final double driveBaseRadius = Math.hypot(trackWidth / 2.0, wheelBase / 2.0);
   public static final Translation2d[] moduleTranslations =
       new Translation2d[] {
@@ -66,18 +63,24 @@ public class DriveConstants {
   // Wheel Rad/Sec
 
   // Drive PID configuration
-  public static final double driveKp = 0.0;
+  public static final double driveKp = 0.0054932; //0.0054932
   public static final double driveKd = 0.0;
-  public static final double driveKs = 0.12651;
-  public static final double driveKv = 0.23402;
+  public static final double driveKs = 0.11008; //0.11008
+  public static final double driveKv = 0.12006; //0.12006
+  public static final double driveKa = 0.0; // 0.011939
   public static final double driveSimP = 0.05;
   public static final double driveSimD = 0.0;
   public static final double driveSimKs = 0.0;
   public static final double driveSimKv = 0.0789;
 
+  // Drive Autonomous PID configuration
+  public static final double driveKpAuto = 5;
+  public static final double driveKiAuto = 0.0;
+  public static final double driveKdAuto = 0.0;
+
   // Turn motor configuration
   public static final boolean turnInverted = false;
-  public static final int turnMotorCurrentLimit = 20;
+  public static final int turnMotorCurrentLimit = 40;
   public static final double turnMotorReduction = 26;
   public static final DCMotor turnGearbox = DCMotor.getNeo550(1);
 
@@ -87,13 +90,18 @@ public class DriveConstants {
   public static final double turnEncoderVelocityFactor = (2 * Math.PI) / 60.0; // RPM -> Rad/Sec
 
   // Turn PID configuration
-  public static final double turnKp = 1;
+  public static final double turnKp = 5;
     
   public static final double turnKd = 0.0;
   public static final double turnSimP = 8.0;
   public static final double turnSimD = 0.0;
   public static final double turnPIDMinInput = 0; // Radians
   public static final double turnPIDMaxInput = 2 * Math.PI; // Radians
+
+  // Drive Autonomous PID configuration
+  public static final double turnKpAuto = 5;
+  public static final double turnKiAuto = 0.0;
+  public static final double turnKdAuto = 0.0;
 
   // PathPlanner configuration
   public static final double robotMassKg = 15;

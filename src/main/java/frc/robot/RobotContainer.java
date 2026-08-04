@@ -8,6 +8,8 @@
 package frc.robot;
 
 import com.pathplanner.lib.auto.AutoBuilder;
+
+import choreo.auto.AutoFactory;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.wpilibj.GenericHID;
@@ -17,6 +19,9 @@ import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
 import frc.robot.autos.AUTO_3MeterTest;
+import frc.robot.autos.AUTO_ChoreoTest;
+import frc.robot.autos.AUTO_Reefscape;
+import frc.robot.autos.AUTO_ReefscapeCoral;
 import frc.robot.autos.AUTO_Test;
 import frc.robot.commands.DriveCommands;
 import frc.robot.subsystems.drive.Drive;
@@ -42,6 +47,8 @@ public class RobotContainer {
 
   // Dashboard inputs
   private final LoggedDashboardChooser<Command> autoChooser;
+
+  private final AutoFactory autoFactory;
 
   /** The container for the robot. Contains subsystems, OI devices, and commands. */
   public RobotContainer() {
@@ -80,11 +87,25 @@ public class RobotContainer {
         break;
     }
 
+    // in constructor, after drive is created:
+    autoFactory = new AutoFactory(
+        drive::getPose,
+        drive::setPose,
+        drive::followTrajectory,
+        true, // alliance flipping - see note below
+        drive
+    );
+
     // Set up auto routines
     autoChooser = new LoggedDashboardChooser<>("Auto Choices", AutoBuilder.buildAutoChooser());
 
     autoChooser.addDefaultOption("Test Auto", new AUTO_Test(this));
     autoChooser.addDefaultOption("3 Meter Test", new AUTO_3MeterTest(this));
+    autoChooser.addDefaultOption("Reefscape", new AUTO_Reefscape(this));
+    autoChooser.addDefaultOption("Reefscape Coral", new AUTO_ReefscapeCoral(this));
+    autoChooser.addDefaultOption("3 Meter Test Choreo", new AUTO_ChoreoTest(autoFactory, "ThreeMeterTest"));
+    autoChooser.addDefaultOption("Rebuilt Choreo", new AUTO_ChoreoTest(autoFactory, "Rebuilt"));
+    autoChooser.addDefaultOption("Reefscape Choreo", new AUTO_ChoreoTest(autoFactory, "Reefscape"));
 
     // Set up SysId routines
     autoChooser.addOption(
@@ -117,9 +138,9 @@ public class RobotContainer {
     drive.setDefaultCommand(
         DriveCommands.joystickDrive(
             drive,
-            () -> -controller.getLeftY()*0.75,
-            () -> -controller.getLeftX()*0.75,
-            () -> -controller.getRightX()*0.75));
+            () -> -controller.getLeftY(),
+            () -> -controller.getLeftX(),
+            () -> -controller.getRightX()));
 
     // Lock to 0° when A button is held
     controller

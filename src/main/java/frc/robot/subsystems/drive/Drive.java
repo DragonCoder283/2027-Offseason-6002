@@ -13,12 +13,18 @@ import static frc.robot.subsystems.drive.DriveConstants.*;
 import com.pathplanner.lib.auto.AutoBuilder;
 import com.pathplanner.lib.config.PIDConstants;
 import com.pathplanner.lib.controllers.PPHolonomicDriveController;
+import com.pathplanner.lib.controllers.PathFollowingController;
 import com.pathplanner.lib.pathfinding.Pathfinding;
+import com.pathplanner.lib.trajectory.PathPlannerTrajectoryState;
+import com.pathplanner.lib.util.DriveFeedforwards;
 import com.pathplanner.lib.util.PathPlannerLogging;
+
+import choreo.trajectory.SwerveSample;
 import edu.wpi.first.hal.FRCNetComm.tInstances;
 import edu.wpi.first.hal.FRCNetComm.tResourceType;
 import edu.wpi.first.hal.HAL;
 import edu.wpi.first.math.Matrix;
+import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.math.estimator.SwerveDrivePoseEstimator;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
@@ -39,6 +45,7 @@ import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
 import frc.robot.Constants;
 import frc.robot.Constants.Mode;
 import frc.robot.util.LocalADStarAK;
+import frc.robot.util.LoggedTunableNumber;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import org.littletonrobotics.junction.AutoLogOutput;
@@ -53,6 +60,67 @@ public class Drive extends SubsystemBase {
   private final Alert gyroDisconnectedAlert =
       new Alert("Disconnected gyro, using kinematics as fallback.", AlertType.kError);
 
+  // Tunable AutoBuilder path-following PID gains.
+  // NOTE: AutoBuilder.configure() can only be called ONCE - calling it again
+  // logs "AutoBuilder has already been configured" and silently does nothing.
+  // PPHolonomicDriveController also has no live setPID method. So instead of
+  // rebuilding the controller and re-calling AutoBuilder.configure(), we hand
+  // AutoBuilder a TunablePPController wrapper ONE time; the wrapper's inner
+  // PPHolonomicDriveController can be swapped out freely whenever the tunables
+  // change, without AutoBuilder ever needing to be reconfigured.
+  private static final LoggedTunableNumber autoDriveKp =
+      new LoggedTunableNumber("Drive/Auto/DriveKp", DriveConstants.driveKpAuto);
+  private static final LoggedTunableNumber autoDriveKi =
+      new LoggedTunableNumber("Drive/Auto/DriveKi", DriveConstants.driveKiAuto);
+  private static final LoggedTunableNumber autoDriveKd =
+      new LoggedTunableNumber("Drive/Auto/DriveKd", DriveConstants.driveKdAuto);
+  private static final LoggedTunableNumber autoTurnKp =
+      new LoggedTunableNumber("Drive/Auto/TurnKp", DriveConstants.turnKpAuto);
+  private static final LoggedTunableNumber autoTurnKi =
+      new LoggedTunableNumber("Drive/Auto/TurnKi", DriveConstants.turnKiAuto);
+  private static final LoggedTunableNumber autoTurnKd =
+      new LoggedTunableNumber("Drive/Auto/TurnKd", DriveConstants.turnKdAuto);
+
+  /**
+   * Thin adapter that lets the AutoBuilder-facing controller reference stay fixed forever while
+   * the actual PPHolonomicDriveController underneath it gets swapped out live. AutoBuilder only
+   * ever sees this wrapper, so it only needs to be configured once.
+   */
+  private static final class TunablePPController implements PathFollowingController {
+    private volatile PPHolonomicDriveController delegate = buildController();
+
+    private static PPHolonomicDriveController buildController() {
+      return new PPHolonomicDriveController(
+          new PIDConstants(autoDriveKp.get(), autoDriveKi.get(), autoDriveKd.get()),
+          new PIDConstants(autoTurnKp.get(), autoTurnKi.get(), autoTurnKd.get()));
+    }
+
+    /** Rebuilds the inner controller from the current tunable values. */
+    void refresh() {
+      delegate = buildController();
+    }
+
+    @Override
+    public void reset(Pose2d currentPose, ChassisSpeeds currentSpeeds) {
+      delegate.reset(currentPose, currentSpeeds);
+    }
+
+    @Override
+    public ChassisSpeeds calculateRobotRelativeSpeeds(
+        Pose2d currentPose, PathPlannerTrajectoryState targetState) {
+      Logger.recordOutput("Drive/Auto/ActiveDriveKp", autoDriveKp.get());
+      Logger.recordOutput("Drive/Auto/ActiveTurnKp", autoTurnKp.get());
+      return delegate.calculateRobotRelativeSpeeds(currentPose, targetState);
+    }
+
+    @Override
+    public boolean isHolonomic() {
+      return delegate.isHolonomic();
+    }
+  }
+
+  private final TunablePPController autoController = new TunablePPController();
+
   private SwerveDriveKinematics kinematics = new SwerveDriveKinematics(moduleTranslations);
   private Rotation2d rawGyroRotation = Rotation2d.kZero;
   private SwerveModulePosition[] lastModulePositions = // For delta tracking
@@ -64,6 +132,10 @@ public class Drive extends SubsystemBase {
       };
   private SwerveDrivePoseEstimator poseEstimator =
       new SwerveDrivePoseEstimator(kinematics, rawGyroRotation, lastModulePositions, Pose2d.kZero);
+  
+  private final PIDController choreoXController = new PIDController(3.5, 0.0, 0.0);
+  private final PIDController choreoYController = new PIDController(3.5, 0.0, 0.0);
+  private final PIDController choreoHeadingController = new PIDController(5, 0.0, 0.0);
 
   public Drive(
       GyroIO gyroIO,
@@ -83,14 +155,23 @@ public class Drive extends SubsystemBase {
     // Start odometry thread
     SparkOdometryThread.getInstance().start();
 
-    // Configure AutoBuilder for PathPlanner
+    // Configure AutoBuilder for PathPlanner (only ever called once - see TunablePPController)
+    //
+    // NOTE: assigned to an explicitly-typed local first, rather than passed as an inline
+    // lambda/method reference. AutoBuilder.configure() has two overloads that differ only in
+    // this parameter's type (Consumer<ChassisSpeeds> vs BiConsumer<ChassisSpeeds,
+    // DriveFeedforwards>). When every argument to configure() is an implicit lambda/method
+    // reference, some compilers can't resolve which overload to use even when arity should
+    // disambiguate it. Giving this one argument a concrete, already-resolved type sidesteps
+    // that ambiguity entirely.
+    java.util.function.BiConsumer<ChassisSpeeds, DriveFeedforwards> driveOutput =
+        (speeds, feedforwards) -> runVelocity(speeds, feedforwards);
     AutoBuilder.configure(
         this::getPose,
         this::setPose,
         this::getChassisSpeeds,
-        this::runVelocity,
-        new PPHolonomicDriveController(
-            new PIDConstants(1.3, 0.0, 0.0), new PIDConstants(1.5, 0.0, 0.0)),
+        driveOutput,
+        autoController,
         ppConfig,
         () -> DriverStation.getAlliance().orElse(Alliance.Blue) == Alliance.Red,
         this);
@@ -114,6 +195,8 @@ public class Drive extends SubsystemBase {
                 (state) -> Logger.recordOutput("Drive/SysIdState", state.toString())),
             new SysIdRoutine.Mechanism(
                 (voltage) -> runCharacterization(voltage.in(Volts)), null, this));
+
+    choreoHeadingController.enableContinuousInput(-Math.PI, Math.PI);
   }
 
   @Override
@@ -125,6 +208,20 @@ public class Drive extends SubsystemBase {
       module.periodic();
     }
     odometryLock.unlock();
+
+    // Swap in a fresh inner controller if any tunable PID gain changed.
+    // Only do this while disabled - swapping mid-auto would disrupt an active path follow.
+    if (DriverStation.isDisabled()) {
+      LoggedTunableNumber.ifChanged(
+          hashCode(),
+          (pid) -> autoController.refresh(),
+          autoDriveKp,
+          autoDriveKi,
+          autoDriveKd,
+          autoTurnKp,
+          autoTurnKi,
+          autoTurnKd);
+    }
 
     // Stop moving when disabled
     if (DriverStation.isDisabled()) {
@@ -176,11 +273,24 @@ public class Drive extends SubsystemBase {
   }
 
   /**
-   * Runs the drive at the desired velocity.
+   * Runs the drive at the desired velocity, with no acceleration feedforward. Used by teleop and
+   * stop() where there's no trajectory to pull per-module feedforwards from.
    *
    * @param speeds Speeds in meters/sec
    */
   public void runVelocity(ChassisSpeeds speeds) {
+    runVelocity(speeds, DriveFeedforwards.zeros(4));
+  }
+
+  /**
+   * Runs the drive at the desired velocity, using PathPlanner's per-module acceleration
+   * feedforwards (kA) when following a trajectory.
+   *
+   * @param speeds Speeds in meters/sec
+   * @param feedforwards Per-module acceleration/force feedforwards from PathPlanner, in FL, FR,
+   *     BL, BR order. Pass {@code DriveFeedforwards.zeros(4)} if none are available (e.g. teleop).
+   */
+  public void runVelocity(ChassisSpeeds speeds, DriveFeedforwards feedforwards) {
     // Calculate module setpoints
     ChassisSpeeds discreteSpeeds = ChassisSpeeds.discretize(speeds, 0.02);
     SwerveModuleState[] setpointStates = kinematics.toSwerveModuleStates(discreteSpeeds);
@@ -190,13 +300,36 @@ public class Drive extends SubsystemBase {
     Logger.recordOutput("SwerveStates/Setpoints", setpointStates);
     Logger.recordOutput("SwerveChassisSpeeds/Setpoints", discreteSpeeds);
 
-    // Send setpoints to modules
+    // Send setpoints (+ acceleration feedforward) to modules
+    double[] accelsMPSSq = feedforwards.accelerationsMPSSq(); // FL, FR, BL, BR order
     for (int i = 0; i < 4; i++) {
-      modules[i].runSetpoint(setpointStates[i]);
+      modules[i].runSetpoint(setpointStates[i], accelsMPSSq[i]);
     }
 
     // Log optimized setpoints (runSetpoint mutates each state)
     Logger.recordOutput("SwerveStates/SetpointsOptimized", setpointStates);
+  }
+
+  /**
+   * Choreo trajectory follower. Field-relative feedforward from the sample + feedback correction
+   * from current pose error, converted to robot-relative before handing off to runVelocity().
+   */
+  public void followTrajectory(SwerveSample sample) {
+      Pose2d pose = getPose();
+  
+      double xFF = sample.vx + choreoXController.calculate(pose.getX(), sample.x);
+      double yFF = sample.vy + choreoYController.calculate(pose.getY(), sample.y);
+      double headingFF =
+          sample.omega
+              + choreoHeadingController.calculate(pose.getRotation().getRadians(), sample.heading);
+  
+      ChassisSpeeds fieldRelativeSpeeds = new ChassisSpeeds(xFF, yFF, headingFF);
+      ChassisSpeeds robotRelativeSpeeds =
+          ChassisSpeeds.fromFieldRelativeSpeeds(fieldRelativeSpeeds, pose.getRotation());
+  
+      Logger.recordOutput("Choreo/TargetPose", new Pose2d(sample.x, sample.y, Rotation2d.fromRadians(sample.heading)));
+  
+      runVelocity(robotRelativeSpeeds); // uses the no-feedforward overload we already built
   }
 
   /** Runs the drive in a straight line with the specified drive output. */

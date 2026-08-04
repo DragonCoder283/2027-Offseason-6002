@@ -1,0 +1,55 @@
+{
+  "version": "2025.0",
+  "command": {
+    "type": "sequential",
+    "data": {
+      "commands": [
+        {
+          "type": "path",
+          "data": {
+            "pathName": "scorePreload"
+          }
+        },
+        {
+          "type": "path",
+          "data": {
+            "pathName": "goToHp1"
+          }
+        },
+        {
+          "type": "path",
+          "data": {
+            "pathName": "scoreCoral1"
+          }
+        },
+        {
+          "type": "path",
+          "data": {
+            "pathName": "goToHp2"
+          }
+        },
+        {
+          "type": "path",
+          "data": {
+            "pathName": "scoreCoral2"
+          }
+        },
+        {
+          "type": "path",
+          "data": {
+            "pathName": "goToHp3"
+          }
+        },
+        {
+          "type": "path",
+          "data": {
+            "pathName": "scoreCoral3"
+          }
+        }
+      ]
+    }
+  },
+  "resetOdom": true,
+  "folder": null,
+  "choreoAuto": false
+}
