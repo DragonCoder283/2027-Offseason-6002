@@ -104,7 +104,8 @@ public class RobotContainer {
     autoChooser.addDefaultOption("Reefscape", new AUTO_Reefscape(this));
     autoChooser.addDefaultOption("Reefscape Coral", new AUTO_ReefscapeCoral(this));
     autoChooser.addDefaultOption("3 Meter Test Choreo", new AUTO_ChoreoTest(autoFactory, "ThreeMeterTest"));
-    autoChooser.addDefaultOption("Rebuilt Choreo", new AUTO_ChoreoTest(autoFactory, "Rebuilt"));
+    autoChooser.addDefaultOption("3 Meter Test Sideways Choreo", new AUTO_ChoreoTest(autoFactory, "ThreeMeterTestSideways"));
+    autoChooser.addDefaultOption("Test Choreo", new AUTO_ChoreoTest(autoFactory, "Loop"));
     autoChooser.addDefaultOption("Reefscape Choreo", new AUTO_ChoreoTest(autoFactory, "Reefscape"));
 
     // Set up SysId routines

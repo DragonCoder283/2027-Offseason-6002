@@ -81,6 +81,11 @@ public class Drive extends SubsystemBase {
   private static final LoggedTunableNumber autoTurnKd =
       new LoggedTunableNumber("Drive/Auto/TurnKd", DriveConstants.turnKdAuto);
 
+  private static final LoggedTunableNumber autoDriveXKpChoreo =
+      new LoggedTunableNumber("Drive/Auto/DriveXKp", 3.1);
+  private static final LoggedTunableNumber autoDriveYKpChoreo =
+      new LoggedTunableNumber("Drive/Auto/DriveYKp", 3.1);
+
   /**
    * Thin adapter that lets the AutoBuilder-facing controller reference stay fixed forever while
    * the actual PPHolonomicDriveController underneath it gets swapped out live. AutoBuilder only
@@ -132,9 +137,9 @@ public class Drive extends SubsystemBase {
       };
   private SwerveDrivePoseEstimator poseEstimator =
       new SwerveDrivePoseEstimator(kinematics, rawGyroRotation, lastModulePositions, Pose2d.kZero);
-  
-  private final PIDController choreoXController = new PIDController(3.5, 0.0, 0.0);
-  private final PIDController choreoYController = new PIDController(3.5, 0.0, 0.0);
+
+  private PIDController choreoXController = new PIDController(5, 0.0, 0.0);
+  private PIDController choreoYController = new PIDController(5, 0.0, 0.0);
   private final PIDController choreoHeadingController = new PIDController(5, 0.0, 0.0);
 
   public Drive(
@@ -221,6 +226,8 @@ public class Drive extends SubsystemBase {
           autoTurnKp,
           autoTurnKi,
           autoTurnKd);
+      choreoXController = new PIDController(autoDriveXKpChoreo.get(), 0, 0);
+      choreoYController = new PIDController(autoDriveYKpChoreo.get(), 0, 0);
     }
 
     // Stop moving when disabled
@@ -316,19 +323,37 @@ public class Drive extends SubsystemBase {
    */
   public void followTrajectory(SwerveSample sample) {
       Pose2d pose = getPose();
-  
-      double xFF = sample.vx + choreoXController.calculate(pose.getX(), sample.x);
-      double yFF = sample.vy + choreoYController.calculate(pose.getY(), sample.y);
+
+      double xError = sample.x - pose.getX();
+      double xCorrection = choreoXController.calculate(pose.getX(), sample.x);
+      double xFF = sample.vx + xCorrection;
+
+      double yError = sample.y - pose.getY();
+      double yCorrection = choreoYController.calculate(pose.getY(), sample.y);
+      double yFF = sample.vy + yCorrection;
+
+      // Proof-of-value logging - confirms what kP is actually live and what it's producing,
+      // for both axes so X and Y behavior can be compared directly.
+      Logger.recordOutput("Choreo/ActiveXKp", choreoXController.getP());
+      Logger.recordOutput("Choreo/XError", xError);
+      Logger.recordOutput("Choreo/XCorrection", xCorrection);
+      Logger.recordOutput("Choreo/XFeedforward", sample.vx);
+
+      Logger.recordOutput("Choreo/ActiveYKp", choreoYController.getP());
+      Logger.recordOutput("Choreo/YError", yError);
+      Logger.recordOutput("Choreo/YCorrection", yCorrection);
+      Logger.recordOutput("Choreo/YFeedforward", sample.vy);
+
       double headingFF =
           sample.omega
               + choreoHeadingController.calculate(pose.getRotation().getRadians(), sample.heading);
-  
+
       ChassisSpeeds fieldRelativeSpeeds = new ChassisSpeeds(xFF, yFF, headingFF);
       ChassisSpeeds robotRelativeSpeeds =
           ChassisSpeeds.fromFieldRelativeSpeeds(fieldRelativeSpeeds, pose.getRotation());
-  
+
       Logger.recordOutput("Choreo/TargetPose", new Pose2d(sample.x, sample.y, Rotation2d.fromRadians(sample.heading)));
-  
+
       runVelocity(robotRelativeSpeeds); // uses the no-feedforward overload we already built
   }
 
