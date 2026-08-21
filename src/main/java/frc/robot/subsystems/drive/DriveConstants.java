@@ -35,7 +35,6 @@ public class DriveConstants {
   public static final Rotation2d backRightZeroRotation = new Rotation2d(0);
 
   // Device CAN IDs
-
   public static final int frontLeftDriveCanId = 2;
   public static final int backLeftDriveCanId = 8;
   public static final int frontRightDriveCanId = 18;
