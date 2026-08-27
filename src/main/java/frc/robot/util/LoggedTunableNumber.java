@@ -23,6 +23,7 @@ public class LoggedTunableNumber implements DoubleSupplier {
 
   private final String key;
   private boolean hasDefault = false;
+  private boolean tuningMode = false;
   private double defaultValue;
   private LoggedNetworkNumber dashboardNumber;
   private Map<Integer, Double> lastHasChangedValues = new HashMap<>();
@@ -71,7 +72,7 @@ public class LoggedTunableNumber implements DoubleSupplier {
     if (!hasDefault) {
       return 0.0;
     } else {
-      return true ? dashboardNumber.get() : defaultValue;
+      return tuningMode ? dashboardNumber.get() : defaultValue;
     }
   }
 
