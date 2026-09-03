@@ -46,7 +46,7 @@ public class DriveConstants {
   public static final int backRightTurnCanId = 11;
 
   // Drive motor configuration
-  public static final int driveMotorCurrentLimit = 50;
+  public static final int driveMotorCurrentLimit = 35;
   public static final double wheelRadiusMeters = Units.inchesToMeters(2.0);
   public static final double driveMotorReduction =
       7.03; // MAXSwerve with 14 pinion teeth
@@ -91,7 +91,7 @@ public class DriveConstants {
 
   // Turn encoder configuration
   public static final boolean turnEncoderInverted = true;
-  public static final double turnEncoderPositionFactor = 2 * Math.PI/26; // Rotations -> Radians
+  public static final double turnEncoderPositionFactor = 2 * Math.PI / 26; // Rotations -> Radians
   public static final double turnEncoderVelocityFactor = (2 * Math.PI) / 60.0; // RPM -> Rad/Sec
 
   // Turn PID configuration

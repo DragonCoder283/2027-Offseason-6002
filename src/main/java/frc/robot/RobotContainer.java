@@ -19,7 +19,7 @@ import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
 import frc.robot.autos.AUTO_3MeterTest;
-import frc.robot.autos.AUTO_ChoreoTest;
+import frc.robot.autos.AUTO_ChoreoSinglePath;
 import frc.robot.autos.AUTO_Reefscape;
 import frc.robot.autos.AUTO_ReefscapeCoral;
 import frc.robot.autos.AUTO_Test;
@@ -99,14 +99,16 @@ public class RobotContainer {
     // Set up auto routines
     autoChooser = new LoggedDashboardChooser<>("Auto Choices", AutoBuilder.buildAutoChooser());
 
+    // Pathplanner routines
     autoChooser.addDefaultOption("Test Auto", new AUTO_Test(this));
     autoChooser.addDefaultOption("3 Meter Test", new AUTO_3MeterTest(this));
     autoChooser.addDefaultOption("Reefscape", new AUTO_Reefscape(this));
     autoChooser.addDefaultOption("Reefscape Coral", new AUTO_ReefscapeCoral(this));
-    autoChooser.addDefaultOption("3 Meter Test Choreo", new AUTO_ChoreoTest(autoFactory, "ThreeMeterTest"));
-    autoChooser.addDefaultOption("3 Meter Test Sideways Choreo", new AUTO_ChoreoTest(autoFactory, "ThreeMeterTestSideways"));
-    autoChooser.addDefaultOption("Test Choreo", new AUTO_ChoreoTest(autoFactory, "Loop"));
-    autoChooser.addDefaultOption("Reefscape Choreo", new AUTO_ChoreoTest(autoFactory, "Reefscape"));
+    autoChooser.addDefaultOption("3 Meter Test Choreo", new AUTO_ChoreoSinglePath(autoFactory, "ThreeMeterTest"));
+    autoChooser.addDefaultOption("3 Meter Test Sideways Choreo", new AUTO_ChoreoSinglePath(autoFactory, "ThreeMeterTestSideways"));
+    autoChooser.addDefaultOption("3 Meter Test Forward Backward", new AUTO_ChoreoSinglePath(autoFactory, "ThreeMeterTestSidewaysFB"));
+    autoChooser.addDefaultOption("Test Choreo", new AUTO_ChoreoSinglePath(autoFactory, "Loop"));
+    autoChooser.addDefaultOption("Reefscape Choreo", new AUTO_ChoreoSinglePath(autoFactory, "Reefscape"));
 
     // Set up SysId routines
     autoChooser.addOption(
@@ -156,7 +158,7 @@ public class RobotContainer {
     // Switch to X pattern when X button is pressed
     controller.x().onTrue(Commands.runOnce(drive::stopWithX, drive));
 
-    // Reset gyro to 0° when B button is pressed
+    // Reset gyro to 0° when start  button is pressed
     controller
         .start()
         .onTrue(
