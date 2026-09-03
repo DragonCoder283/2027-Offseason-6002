@@ -214,7 +214,6 @@ public class ModuleIOSpark implements ModuleIO {
 
     @Override 
     public void updateInputs(ModuleIOInputs inputs) { 
-
         // Update drive inputs 
         sparkStickyFault = false; 
         ifOk(driveSpark, driveEncoder::getPosition, (value) -> inputs.drivePositionRad = value); 
