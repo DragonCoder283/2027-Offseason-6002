@@ -10,6 +10,7 @@ package frc.robot.subsystems.drive;
 import static frc.robot.subsystems.drive.DriveConstants.*; 
 import static frc.robot.util.SparkUtil.*;
 
+import com.ctre.phoenix6.StatusSignal;
 import com.ctre.phoenix6.configs.CANcoderConfiguration;
 import com.ctre.phoenix6.hardware.CANcoder; 
 import com.revrobotics.PersistMode; 
@@ -29,6 +30,9 @@ import com.revrobotics.spark.config.SparkFlexConfig;
 import edu.wpi.first.math.MathUtil; 
 import edu.wpi.first.math.filter.Debouncer; 
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.util.Units;
+import edu.wpi.first.units.measure.Angle;
+
 import java.util.Queue; 
 import java.util.function.DoubleSupplier; 
 
@@ -57,6 +61,9 @@ public class ModuleIOSpark implements ModuleIO {
     private final Queue<Double> turnPositionQueue; 
 
     private final SparkFlexConfig turnConfig;
+    private final StatusSignal<Angle> turnAbsolutePosition;
+
+    private CANcoder turnEncoderCTRE;
 
     // Connection debouncers 
     private final Debouncer driveConnectedDebounce = new Debouncer(0.5, Debouncer.DebounceType.kFalling); 
@@ -175,34 +182,34 @@ public class ModuleIOSpark implements ModuleIO {
             turnSpark, 5, () -> turnSpark.configure( 
                 turnConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters)); 
 
-        try (// Instantiate the CAN Bus CANcoder
-        var turnEncoderCTRE = new CANcoder( 
-            switch (module) { 
-                case 0 -> 31; 
-                case 1 -> 32; 
-                case 2 -> 33; 
-                case 3 -> 34; 
-                default -> 0; 
-            })) {
-            var turnEncoderOffsets = switch (module) { 
-                case 0 -> turnEncoderMagnetOffsetFrontLeft; 
-                case 1 -> turnEncoderMagnetOffsetFrontRight; 
-                case 2 -> turnEncoderMagnetOffsetBackLeft; 
-                case 3 -> turnEncoderMagnetOffsetBackRight; 
-                default -> 0; 
+        { // Instantiate the CAN Bus CANcoder
+            turnEncoderCTRE = new CANcoder(
+                switch (module) {
+                    case 0 -> 31;
+                    case 1 -> 32;
+                    case 2 -> 33;
+                    case 3 -> 34;
+                    default -> 0;
+                });
+                
+            turnAbsolutePosition = turnEncoderCTRE.getAbsolutePosition(); // <-- add this
+        
+            var turnEncoderOffsets = switch (module) {
+                case 0 -> turnEncoderMagnetOffsetFrontLeft;
+                case 1 -> turnEncoderMagnetOffsetFrontRight;
+                case 2 -> turnEncoderMagnetOffsetBackLeft;
+                case 3 -> turnEncoderMagnetOffsetBackRight;
+                default -> 0;
             };
-
+        
             CANcoderConfiguration config = new CANcoderConfiguration();
-
             config.MagnetSensor.MagnetOffset = turnEncoderOffsets;
             turnEncoderCTRE.getConfigurator().apply(config);
-
-            // Seed the high-speed internal encoder with the absolute CANcoder position on boot
-            // Get position returns rotations. Ensure your turnEncoderPositionFactor matches the expected units (usually Radians for AdvantageKit setups)
+        
             turnEncoder.setPosition(0);
             double absolutePosition = turnEncoderCTRE.getAbsolutePosition().getValueAsDouble();
             tryUntilOk(turnSpark, 5, () -> turnEncoder.setPosition(Rotation2d.fromRotations(absolutePosition).getRadians()));
-        } 
+        }
 
         // Create odometry queues 
         timestampQueue = SparkOdometryThread.getInstance().makeTimestampQueue(); 
@@ -240,6 +247,12 @@ public class ModuleIOSpark implements ModuleIO {
         inputs.odometryTurnPositions = turnPositionQueue.stream() 
             .map((Double value) -> new Rotation2d(value).minus(zeroRotation)) 
             .toArray(Rotation2d[]::new); 
+        
+        turnAbsolutePosition.refresh();
+        if (turnAbsolutePosition.getStatus().isOK()) {
+            inputs.turnAbsolutePosition =
+                Units.rotationsToRadians(turnAbsolutePosition.getValueAsDouble());
+        }
 
         timestampQueue.clear(); 
         drivePositionQueue.clear(); 
