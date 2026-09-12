@@ -39,6 +39,8 @@ public interface ModuleIO {
   /** Run the turn motor at the specified open loop value. */
   public default void setTurnOpenLoop(double output) {}
 
+  public default void setDriveVelocity(double velocityRadPerSec) {}
+
   /**
    * Run the drive motor at the specified velocity, with an optional acceleration feedforward
    * (kA), e.g. from PathPlanner's per-module DriveFeedforwards during autonomous.

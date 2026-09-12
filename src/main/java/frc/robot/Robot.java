@@ -23,6 +23,8 @@ public class Robot extends LoggedRobot {
   private Command m_autonomousCommand;
 
   private final RobotContainer m_robotContainer;
+
+  public static final Constants.Mode CURRENT_ROBOT_MODE = isReal() ? Constants.Mode.REAL : Constants.Mode.SIM;
   /**
    * This function is run when the robot is first started up and should be used for any
    * initialization code.
@@ -112,11 +114,14 @@ public class Robot extends LoggedRobot {
   @Override
   public void testPeriodic() {}
 
-  /** This function is called once when the robot is first started up. */
   @Override
-  public void simulationInit() {}
+  public void simulationInit() {
+    m_robotContainer.resetSimulationField();
+  }
 
   /** This function is called periodically whilst in simulation. */
   @Override
-  public void simulationPeriodic() {}
+  public void simulationPeriodic() {
+    m_robotContainer.updateSimulation();
+  }
 }

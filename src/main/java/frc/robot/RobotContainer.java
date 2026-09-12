@@ -25,11 +25,16 @@ import frc.robot.autos.AUTO_ReefscapeCoral;
 import frc.robot.autos.AUTO_Test;
 import frc.robot.commands.DriveCommands;
 import frc.robot.subsystems.drive.Drive;
+import frc.robot.subsystems.drive.DriveConstants;
 import frc.robot.subsystems.drive.GyroIO;
 import frc.robot.subsystems.drive.GyroIOPigeon2;
+import frc.robot.subsystems.drive.GyroIOSim;
 import frc.robot.subsystems.drive.ModuleIO;
 import frc.robot.subsystems.drive.ModuleIOSim;
 import frc.robot.subsystems.drive.ModuleIOSpark;
+import org.ironmaple.simulation.SimulatedArena;
+import org.ironmaple.simulation.drivesims.SwerveDriveSimulation;
+import org.littletonrobotics.junction.Logger;
 import org.littletonrobotics.junction.networktables.LoggedDashboardChooser;
 
 /**
@@ -41,7 +46,8 @@ import org.littletonrobotics.junction.networktables.LoggedDashboardChooser;
 public class RobotContainer {
   // Subsystems
   public final Drive drive;
-
+  public SwerveDriveSimulation driveSimulation = null;
+  
   // Controller
   private final CommandXboxController controller = new CommandXboxController(0);
 
@@ -66,13 +72,20 @@ public class RobotContainer {
 
       case SIM:
         // Sim robot, instantiate physics sim IO implementations
+        this.driveSimulation =
+            new SwerveDriveSimulation(
+                DriveConstants.mapleSimConfig, new Pose2d(3.5, 4, new Rotation2d()));
+
         drive =
             new Drive(
-                new GyroIO() {},
-                new ModuleIOSim(),
-                new ModuleIOSim(),
-                new ModuleIOSim(),
-                new ModuleIOSim());
+                new GyroIOSim(driveSimulation.getGyroSimulation()) {},
+                new ModuleIOSim(driveSimulation.getModules()[0]),
+                new ModuleIOSim(driveSimulation.getModules()[1]),
+                new ModuleIOSim(driveSimulation.getModules()[2]),
+                new ModuleIOSim(driveSimulation.getModules()[3]));
+
+        SimulatedArena.getInstance().addDriveTrainSimulation(driveSimulation);
+        
         break;
 
       default:
@@ -177,5 +190,32 @@ public class RobotContainer {
    */
   public Command getAutonomousCommand() {
     return autoChooser.get();
+  }
+
+    public void resetSimulationField() {
+    if (Robot.CURRENT_ROBOT_MODE != Constants.Mode.SIM) return;
+
+    // if (FieldConstants.getAlliance() == Alliance.Blue) {
+    //   resetPose = new Pose2d(3.5, 1, new Rotation2d());
+    // } else {
+    //   resetPose = new Pose2d(13, 1, new Rotation2d());
+    // }
+
+    // drive.resetOdometry(resetPose);
+    SimulatedArena.getInstance().resetFieldForAuto();
+  }
+
+  public void updateSimulation() {
+    if (Robot.CURRENT_ROBOT_MODE != Constants.Mode.SIM) return;
+
+    SimulatedArena.getInstance().simulationPeriodic();
+
+    Logger.recordOutput(
+        "FieldSimulation/RobotPosition", driveSimulation.getSimulatedDriveTrainPose());
+    Logger.recordOutput(
+        "FieldSimulation/Fuel", SimulatedArena.getInstance().getGamePiecesArrayByType("Fuel"));
+    // Logger.recordOutput("FieldSimulation/Alliance", FieldConstants.getAlliance().toString());
+    Logger.recordOutput("FieldSimulation/BlueScore", SimulatedArena.getInstance().getScore(true));
+    Logger.recordOutput("FieldSimulation/RedScore", SimulatedArena.getInstance().getScore(false));
   }
 }
